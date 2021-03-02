@@ -47,17 +47,20 @@ def run():
   loss = tf.keras.losses.BinaryCrossentropy()
 
   epochs = 1
+  steps_per_epoch = config.NUM_TRAIN_EXAMPLES // config.DEFAULT_BATCH_SIZE
   for epoch in range(epochs):
     print("\nStart of epoch %d" % (epoch,))
     start_time = time.time()
 
     # Iterate over the batches of the dataset.
     for step, (x_batch_train, y_batch_train) in enumerate(train_ds):
+      if step >= steps_per_epoch:
+        break
 
       loss_value = train_step(model, loss, x_batch_train, y_batch_train, optimizers_and_trainables)
 
       # Log every 200 batches.
-      if step % 200 == 0:
+      if step % 20 == 0:
         print(
           "Training loss (for one batch) at step %d: %.4f"
           % (step, float(loss_value))
