@@ -290,7 +290,7 @@ class RankingModel(models.Model):
     `tfrs.experimental.optimizers.CompositeOptimizer` can be used to apply
     different optimizer to embedding variables and the remaining variables.
     """
-    return itertools.chain(*[embedding.trainable_variables for embedding in self._embeddings])
+    return list(itertools.chain(*[embedding.trainable_variables for embedding in self._embeddings]))
 
   @property
   def dense_trainable_variables(self) -> Sequence[tf.Variable]:
