@@ -7,6 +7,19 @@ from tensorflow_recommenders.hack import config, fake_data
 from tensorflow_recommenders.experimental.models import RankingModel
 
 
+@tf.function
+def train_step(model, loss, x, y, optimizer_and_trainables):
+  with tf.GradientTape() as tape:
+    output = model(x, training=True)
+    loss_value = loss(y, output)
+  trainable_list = [t() for _, t in optimizer_and_trainables]
+  optimizer_list = [o for o, _ in optimizer_and_trainables]
+  grads = tape.gradient(loss_value, trainable_list)
+  for i, (optimizer, trainables) in enumerate(zip(optimizer_list, trainable_list)):
+    optimizer.apply_gradients(zip(grads[i], trainables))
+  return loss_value
+
+
 def _model():
   return RankingModel(
       vocab_sizes=config.vocab_sizes,
@@ -20,18 +33,6 @@ def _model():
 
 
 def run():
-  @tf.function
-  def train_step(model, loss, x, y, optimizer_and_trainables):
-    with tf.GradientTape() as tape:
-      output = model(x, training=True)
-      loss_value = loss(y, output)
-    trainable_list = [t() for _, t in optimizer_and_trainables]
-    optimizer_list = [o for o, _ in optimizer_and_trainables]
-    grads = tape.gradient(loss_value, trainable_list)
-    for i, (optimizer, trainables) in enumerate(zip(optimizer_list, trainable_list)):
-      optimizer.apply_gradients(zip(grads[i], trainables))
-    return loss_value
-
   train_ds, eval_ds = fake_data.datasets(config.NUM_TRAIN_EXAMPLES,
                                          config.NUM_EVAL_EXAMPLES,
                                          config.num_of_dense_features,
