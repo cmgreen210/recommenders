@@ -15,6 +15,7 @@
 """A pre-built ranking model."""
 
 
+import itertools
 import math
 from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 
@@ -22,7 +23,6 @@ import tensorflow as tf
 
 from tensorflow_recommenders import models
 from tensorflow_recommenders import tasks
-from tensorflow_recommenders.layers import embedding
 
 
 class DotInteraction(tf.keras.layers.Layer):
@@ -185,7 +185,6 @@ class RankingModel(models.Model):
       self,
       vocab_sizes: List[int],
       embedding_dim: int = 16,
-      emb_optimizer: Optional[tf.keras.optimizers.Optimizer] = None,
       bottom_stack: Optional[tf.keras.layers.Layer] = None,
       feature_interaction: Optional[tf.keras.layers.Layer] = None,
       top_stack: Optional[tf.keras.layers.Layer] = None,
@@ -193,15 +192,10 @@ class RankingModel(models.Model):
 
     super().__init__()
 
-    emb_feature_config = _get_tpu_embedding_feature_config(
-        vocab_sizes=vocab_sizes,
-        embedding_dim=embedding_dim)
+    self._embedding_dim = embedding_dim
+    self._vocab_sizes = vocab_sizes
 
-    if not emb_optimizer:
-      emb_optimizer = tf.keras.optimizers.Adam()
-
-    self._tpu_embeddings = embedding.TPUEmbedding(
-        emb_feature_config, emb_optimizer)
+    self._embeddings = [tf.keras.layers.Embedding(vocab_size, embedding_dim) for vocab_size in vocab_sizes]
 
     self._bottom_stack = bottom_stack if bottom_stack else MlpBlock(
         units=[256, 64, embedding_dim], out_activation="relu")
@@ -267,7 +261,7 @@ class RankingModel(models.Model):
     dense_features = inputs["dense_features"]
     sparse_features = inputs["sparse_features"]
 
-    sparse_embeddings = self._tpu_embeddings(sparse_features)
+    sparse_embeddings = [embedding(sparse_features[str(i)]) for i, embedding in enumerate(self._embeddings)]
     # Combining a dictionary to a vector and squeezing dimension from
     # (batch_size, 1, emb) to (batch_size, emb)
     sparse_embeddings = tf.nest.flatten(sparse_embeddings)
@@ -296,13 +290,14 @@ class RankingModel(models.Model):
     `tfrs.experimental.optimizers.CompositeOptimizer` can be used to apply
     different optimizer to embedding variables and the remaining variables.
     """
-    return self._tpu_embeddings.trainable_variables
+    return itertools.chain(*[embedding.trainable_variables for embedding in self._embeddings])
 
   @property
   def dense_trainable_variables(self) -> Sequence[tf.Variable]:
     """Returns all trainable variables that are not embeddings."""
     dense_vars = []
+    embedding_layers = set(self._embeddings)
     for layer in self.layers:
-      if layer != self._tpu_embeddings:
+      if layer not in embedding_layers:
         dense_vars.extend(layer.trainable_variables)
     return dense_vars
