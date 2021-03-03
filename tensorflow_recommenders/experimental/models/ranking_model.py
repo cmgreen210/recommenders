@@ -241,7 +241,7 @@ class RankingModel(models.Model):
     features, labels = inputs
     outputs = self(features, training=training)
 
-    loss = self._task(labels, outputs)
+    loss = self._task(labels, outputs, compute_metrics=False)
     loss = tf.reduce_mean(loss)
     # Scales loss as the default gradients allreduce performs sum inside the
     # optimizer.

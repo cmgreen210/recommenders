@@ -1,22 +1,8 @@
 import time
 
 import tensorflow as tf
-import tensorflow_recommenders as tfrs
 from tensorflow_recommenders.hack import config, fake_data
-
-from tensorflow_recommenders.experimental.models import RankingModel
-
-
-def _model():
-  return RankingModel(
-      vocab_sizes=config.vocab_sizes,
-      embedding_dim=config.embedding_dim,
-      bottom_stack=tfrs.experimental.models.MlpBlock(units=config.bottom_mlp_list,
-                                                     out_activation="relu"),
-      feature_interaction=tfrs.experimental.models.DotInteraction(),
-      top_stack=tfrs.experimental.models.MlpBlock(units=config.top_mlp_list,
-                                                  out_activation="sigmoid"),
-  )
+from tensorflow_recommenders.hack.model import ranking_model
 
 
 def run():
@@ -40,7 +26,7 @@ def run():
 
   embedding_optimizer = tf.keras.optimizers.Adagrad()
   dense_optimizer = tf.keras.optimizers.Adam()
-  model = _model()
+  model = ranking_model()
   optimizers_and_trainables = [(embedding_optimizer, lambda: model.embedding_trainable_variables),
                                (dense_optimizer, lambda: model.dense_trainable_variables)]
   loss = tf.keras.losses.BinaryCrossentropy()
